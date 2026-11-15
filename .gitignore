@@ -1,0 +1,5 @@
+build/
+Pudorys.xcodeproj/
+.DS_Store
+*.preview.svg
+xcuserdata/
