@@ -10,6 +10,7 @@ struct PlanLayers: Hashable {
     var layout = true
     var photos = true
     var grid = true
+    var labels = true
 }
 
 /// Converts between plan metres and view points.
@@ -81,7 +82,9 @@ struct PlanDrawing {
                 ctx.fill(path, with: .color(ink.opacity(0.08)))
                 ctx.stroke(path, with: .color(ink.opacity(sel ? 0.9 : 0.45)),
                            style: StrokeStyle(lineWidth: sel ? 2 : 1, dash: [4, 3]))
-                label(&ctx, Names.category(o.category), at: m.pt(o.center), size: 10, color: ink.opacity(0.55))
+                if layers.labels {
+                    label(&ctx, Names.category(o.category), at: m.pt(o.center), size: 10, color: ink.opacity(0.55))
+                }
             }
         }
 
@@ -166,7 +169,7 @@ struct PlanDrawing {
                 ctx.stroke(front, with: .color(base), lineWidth: sel ? 5 : 3)
                 let fs = min(12, max(8, CGFloat(min(item.width, item.depth)) * s / 5))
                 // Rugs usually lie under other pieces: name them only when selected.
-                if sel || !LayoutCheck.isFlat(item) {
+                if layers.labels && (sel || !LayoutCheck.isFlat(item)) {
                     label(&ctx, item.name, at: m.pt(item.center), size: fs, color: ink, bold: true)
                 }
                 if sel {
@@ -217,7 +220,7 @@ struct PlanDrawing {
 
         // Scale bar
         let bar = CGRect(x: 16, y: m.size.height - 28, width: s, height: 4)
-        if bar.width < m.size.width - 40 {
+        if layers.labels, bar.width < m.size.width - 40 {
             ctx.fill(Path(bar), with: .color(ink))
             label(&ctx, "1 m · rozměry v cm", at: CGPoint(x: bar.minX, y: bar.minY - 10), size: 10, color: ink, anchor: .leading)
         }

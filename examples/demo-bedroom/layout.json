@@ -1,0 +1,122 @@
+[
+  {
+    "category" : "bed",
+    "depth" : 2.05,
+    "height" : 0.5,
+    "id" : "b1",
+    "name" : "Postel 160×200",
+    "note" : "Posunuta níž kvůli stolu. Nahoře je přístup 70 cm, dole 60 cm (minimum).",
+    "rotation" : 270,
+    "width" : 1.6,
+    "x" : 1.05,
+    "y" : 2.4
+  },
+  {
+    "category" : "table",
+    "depth" : 0.4,
+    "height" : 0.5,
+    "id" : "n1",
+    "name" : "Noční stolek",
+    "note" : "Zúžený na 40 cm, stojí mezi stolem a postelí",
+    "rotation" : 270,
+    "width" : 0.4,
+    "x" : 0.2,
+    "y" : 1.4
+  },
+  {
+    "category" : "table",
+    "depth" : 0.4,
+    "height" : 0.5,
+    "id" : "n2",
+    "name" : "Noční stolek",
+    "note" : "Dolní strana postele",
+    "rotation" : 270,
+    "width" : 0.4,
+    "x" : 0.2,
+    "y" : 3.4
+  },
+  {
+    "category" : "storage",
+    "depth" : 0.6,
+    "height" : 2.1,
+    "id" : "s1",
+    "name" : "Šatní skříň 120 cm",
+    "note" : "Beze změny, ve výklenku. Před dvířky zůstává 90 cm.",
+    "rotation" : 180,
+    "width" : 1.2,
+    "x" : 4,
+    "y" : 2.6
+  },
+  {
+    "category" : "desk",
+    "depth" : 0.6,
+    "height" : 0.75,
+    "id" : "d1",
+    "name" : "Pracovní stůl 120×60",
+    "note" : "U levé stěny v horním rohu. Okno nahoře svítí z boku.",
+    "rotation" : 270,
+    "width" : 1.2,
+    "x" : 0.3,
+    "y" : 0.6
+  },
+  {
+    "category" : "chair",
+    "depth" : 0.6,
+    "height" : 1,
+    "id" : "c1",
+    "name" : "Kancelářská židle",
+    "note" : "Čelem ke stolu, za ní zůstává průchod k posteli",
+    "rotation" : 90,
+    "width" : 0.6,
+    "x" : 0.95,
+    "y" : 0.6
+  },
+  {
+    "category" : "lamp",
+    "depth" : 0.2,
+    "height" : 0.45,
+    "id" : "l1",
+    "name" : "Stolní lampa",
+    "note" : "Na stole, v rohu u okna",
+    "rotation" : 0,
+    "width" : 0.2,
+    "x" : 0.15,
+    "y" : 0.15
+  },
+  {
+    "category" : "rug",
+    "depth" : 2,
+    "height" : 0.01,
+    "id" : "r1",
+    "name" : "Koberec 140×200",
+    "note" : "Posunut spolu s postelí",
+    "rotation" : 0,
+    "width" : 1.4,
+    "x" : 1.5,
+    "y" : 2.4
+  },
+  {
+    "category" : "plant",
+    "depth" : 0.4,
+    "height" : 1.1,
+    "id" : "p1",
+    "name" : "Pokojová rostlina",
+    "note" : "Přesunuta vedle horního okna, místo ní je teď stůl",
+    "rotation" : 0,
+    "width" : 0.4,
+    "x" : 2.5,
+    "y" : 0.25
+  },
+  {
+    "category" : "storage",
+    "depth" : 0.48,
+    "height" : 0.8,
+    "id" : "k1",
+    "name" : "Komoda 120×48",
+    "note" : "Nízká komoda na místě původního stolu. Před zásuvkami je 90 cm a nepřekáží oknu.",
+    "rotation" : 0,
+    "width" : 1.2,
+    "x" : 3.8,
+    "y" : 0.24
+  }
+]

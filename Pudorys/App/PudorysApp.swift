@@ -43,14 +43,16 @@ struct ScanListView: View {
                         Button { showSettings = true } label: { Label("Nastavení", systemImage: "gear") }
                     } label: { Image(systemName: "ellipsis.circle") }
                 }
-                ToolbarItem(placement: .bottomBar) {
-                    Button {
-                        if RoomCaptureSession.isSupported { scanning = true } else { unsupported = true }
-                    } label: {
-                        Label("Nový sken", systemImage: "camera.viewfinder").font(.headline)
-                    }
-                    .buttonStyle(.borderedProminent)
+            }
+            .safeAreaInset(edge: .bottom) {
+                Button {
+                    if RoomCaptureSession.isSupported { scanning = true } else { unsupported = true }
+                } label: {
+                    Label("Nový sken", systemImage: "camera.viewfinder").font(.headline).frame(maxWidth: .infinity)
                 }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .padding()
             }
             .fullScreenCover(isPresented: $scanning) {
                 ScanView { rec in path = [rec] }.environment(store)
@@ -79,7 +81,7 @@ struct ScanListView: View {
         HStack(spacing: 12) {
             Canvas { ctx, size in
                 var layers = PlanLayers()
-                layers.dimensions = false; layers.grid = false; layers.photos = false
+                layers.dimensions = false; layers.grid = false; layers.photos = false; layers.labels = false
                 PlanDrawing(plan: rec.plan, layout: rec.layout, photos: [], layers: layers)
                     .draw(&ctx, PlanMapper(size: size, bounds: rec.plan.bounds, padding: 0.2))
             }

@@ -1,0 +1,23 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate Xcode project
+        run: |
+          brew install xcodegen
+          xcodegen generate
+      - name: Build for iOS Simulator
+        run: |
+          xcodebuild -project Pudorys.xcodeproj -scheme Pudorys \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
+      - name: Check the example layout
+        run: python3 tools/check_layout.py examples/demo-bedroom -o /tmp/preview.svg
