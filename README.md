@@ -18,6 +18,7 @@ The screenshots show the built-in sample room. The layout in them is a real prop
 
 - **Guided scan.** Apple's [RoomPlan](https://developer.apple.com/documentation/roomplan) walks you through the room and detects walls, doors, windows, openings and larger furniture. Photos taken during the scan are pinned on the plan where they were taken, with the direction they face.
 - **Floor plan with dimensions.** Wall lengths in cm, door swings, windows, area, perimeter, ceiling height and volume. Tap a wall, door or window for its size (window sill height included). A ruler measures between any two points and snaps to corners.
+- **Corrections a scan can't make.** Tap a door to say where it leads, which side its hinges are on and whether it opens into the room or out of it; turn a "door" into a passage, a window or a built-in wardrobe (RoomPlan reports mirrored sliding wardrobe doors as a wide door), or remove it. The plan, the export and Claude's brief all use the corrected data.
 - **Furniture layout.** Add pieces from presets or take over what the scan found, then drag, rotate (two fingers or buttons) and resize them. Pieces that stick outside the room, overlap each other or block a door turn red.
 - **3D view.** The room with your layout, which you can orbit, plus a low-walls mode for a doll-house view. The scanned model also opens in AR Quick Look.
 - **Planning with Claude.** A chat in which Claude gets the measured plan, a picture of it and up to 8 photos, and answers with a complete layout. The layout appears at once in the plan and in 3D, you adjust it by hand, and the next message includes your changes. Each proposal can be undone.
@@ -84,7 +85,8 @@ The Xcode project is generated from `project.yml`; don't commit `Pudorys.xcodepr
 | `-exportTest` | Write an export and print its path |
 | `-open "<name>"` | Open the scan with that name |
 | `-importRoom <file>` | Add a scan from a RoomPlan JSON file (`roomplan-captured-room.json` from an export) and open it |
-| `-rebuild` | Build every plan again from its stored RoomPlan data |
+| `-rebuild` | Build every plan again from its stored RoomPlan data (corrections made by hand are kept) |
+| `-selectOpening <n>` | Select the n-th door or window on the plan |
 | `-aiTest "<request>"` | Send one planning request and print `AITEST …` |
 
 Debug builds also read the API key from the `ANTHROPIC_API_KEY` environment variable, so a test can take it from a password manager without storing it:
@@ -103,6 +105,7 @@ Contributions are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 - One room per scan. RoomPlan can merge several rooms into a whole flat (`StructureBuilder`); that isn't wired up yet.
 - RoomPlan dimensions are usually accurate to a few centimetres. Measure critical spots (a kitchen run, a built-in wardrobe) with a tape measure.
+- RoomPlan does not report how a door opens, and it takes large mirrors and sliding wardrobe doors for doors. Both are corrected by hand on the plan.
 - RoomPlan detects only larger furniture (beds, sofas, tables, chairs, storage, appliances). Radiators and sockets aren't detected; a photo with a caption tells Claude about them.
 
 ## License

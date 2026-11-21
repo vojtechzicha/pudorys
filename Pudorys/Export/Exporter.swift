@@ -107,8 +107,13 @@ enum Exporter {
         for wl in p.walls {
             o += "<line x1=\"\(X(wl.a.x))\" y1=\"\(Y(wl.a.y))\" x2=\"\(X(wl.b.x))\" y2=\"\(Y(wl.b.y))\" stroke=\"#222\" stroke-width=\"12\" stroke-linecap=\"square\"/>\n"
         }
+        for op in p.openings where op.kind == .wardrobe {
+            let body = p.wardrobeBody(op), mid = Geometry.centroid(body)
+            o += "<polygon fill=\"#f1f1f1\" stroke=\"#555\" points=\"\(body.map { "\(X($0.x)),\(Y($0.y))" }.joined(separator: " "))\"/>\n"
+            o += "<text x=\"\(X(mid.x))\" y=\"\(Y(mid.y))\" text-anchor=\"middle\" dominant-baseline=\"middle\" font-size=\"11\">\(esc(op.label ?? "Vestavěná skříň"))</text>\n"
+        }
         for op in p.openings {
-            let col = op.kind == .window ? "#6aa8ff" : op.kind == .door ? "#a0522d" : "white"
+            let col = op.kind == .window ? "#6aa8ff" : op.kind == .door ? "#a0522d" : op.kind == .wardrobe ? "#8fa6ba" : "white"
             o += "<line x1=\"\(X(op.a.x))\" y1=\"\(Y(op.a.y))\" x2=\"\(X(op.b.x))\" y2=\"\(Y(op.b.y))\" stroke=\"white\" stroke-width=\"13\"/>\n"
             o += "<line x1=\"\(X(op.a.x))\" y1=\"\(Y(op.a.y))\" x2=\"\(X(op.b.x))\" y2=\"\(Y(op.b.y))\" stroke=\"\(col)\" stroke-width=\"4\"/>\n"
         }

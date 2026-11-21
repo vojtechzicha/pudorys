@@ -18,6 +18,18 @@ enum Fmt {
 }
 
 enum Names {
+    static func opening(_ o: PlanOpening) -> String {
+        let kind: String
+        switch o.kind {
+        case .door: kind = o.slides ? "Posuvné dveře" : "Dveře"
+        case .window: kind = "Okno"
+        case .opening: kind = "Průchod"
+        case .wardrobe: kind = "Vestavěná skříň"
+        }
+        if let l = o.label, !l.isEmpty { return "\(kind) – \(l)" }
+        return kind
+    }
+
     static func category(_ c: String) -> String {
         switch c {
         case "storage": return "Úložný prostor"

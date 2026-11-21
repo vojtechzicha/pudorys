@@ -5,13 +5,21 @@ import RoomPlan
 /// `CapturedRoom` anywhere, the Simulator included, so a scan from a real device can be replayed there.
 extension ScanStore {
     /// Runs `PlanBuilder` again on the scan's stored RoomPlan data and moves the photos and the
-    /// layout to the new plan coordinates. Returns nil when the scan has no readable `room.json`.
+    /// layout to the new plan coordinates. What was corrected by hand on doors and windows is kept,
+    /// including their removal. Returns nil when the scan has no readable `room.json`.
     @discardableResult
     func rebuildPlan(_ rec: ScanRecord) -> ScanRecord? {
         guard let data = try? Data(contentsOf: roomURL(rec.id)),
               let room = try? JSONDecoder().decode(CapturedRoom.self, from: data) else { return nil }
         var new = rec
         new.plan = PlanBuilder.build(from: room)
+        let corrected = Dictionary(rec.plan.openings.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        new.plan.openings = new.plan.openings.compactMap { o in
+            guard let was = corrected[o.id] else { return nil }
+            var o = o
+            o.kind = was.kind; o.label = was.label; o.hingeAtB = was.hingeAtB; o.opensOut = was.opensOut; o.depth = was.depth
+            return o
+        }
         let old = rec.plan.transform, t = new.plan.transform
         func move(_ p: P2) -> P2 {
             let w = old.toWorld(p)

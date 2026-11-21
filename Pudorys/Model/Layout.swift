@@ -32,11 +32,10 @@ struct LayoutIssue: Hashable {
 
 enum LayoutCheck {
     /// Square in front of each door that should stay free for the door leaf and for walking through.
+    /// A built-in wardrobe needs the same room in front of it to be used.
     static func doorZones(_ plan: PlanModel) -> [(PlanOpening, [P2])] {
-        let c = Geometry.centroid(plan.outline)
-        return plan.openings.filter { $0.kind == .door }.map { d in
-            var n = P2(x: -d.direction.y, y: d.direction.x)
-            if (c - d.center).dot(n) < 0 { n = n * -1 }
+        plan.openings.filter { $0.kind == .door || $0.kind == .wardrobe }.map { d in
+            let n = plan.inward(d)
             let depth = min(max(d.width, 0.7), 1.0)
             return (d, [d.a, d.b, d.b + n * depth, d.a + n * depth])
         }

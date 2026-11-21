@@ -9,6 +9,8 @@ struct PlanView: View {
     @State private var layers = PlanLayers()
     @State private var selection: PlanSelection = .none
     @State private var measuring = false
+    @State private var labelling = false
+    @State private var labelText = ""
     @State private var measure: [P2] = []
     @State private var zoom: CGFloat = 1
     @State private var zoomBase: CGFloat = 1
@@ -38,7 +40,15 @@ struct PlanView: View {
             infoPanel(issues: issues)
         }
         .toolbar { toolbar }
-        .onAppear { layers.detected = record.layout.isEmpty }
+        .onAppear {
+            layers.detected = record.layout.isEmpty
+            // Debug: `-selectOpening <n>` selects the n-th door or window, to check its panel in the Simulator.
+            let a = ProcessInfo.processInfo.arguments
+            if let i = a.firstIndex(of: "-selectOpening"), i + 1 < a.count, let n = Int(a[i + 1]),
+               record.plan.openings.indices.contains(n) {
+                selection = .opening(record.plan.openings[n].id)
+            }
+        }
         .onChange(of: record.layout.isEmpty) { layers.detected = record.layout.isEmpty }
         .sheet(item: $editing) { item in
             ItemEditor(item: item) { updated in
@@ -201,10 +211,7 @@ struct PlanView: View {
                     Text("Délka \(Fmt.m(w.length)) · výška \(Fmt.m(w.height)) · plocha \(Fmt.m2(w.length * w.height))")
                 }
             case .opening(let id):
-                if let o = record.plan.openings.first(where: { $0.id == id }) {
-                    Text(o.kind == .door ? "Dveře" : o.kind == .window ? "Okno" : "Otvor").font(.headline)
-                    Text("Šířka \(Fmt.cm(o.width)) · výška \(Fmt.cm(o.height))" + (o.bottom > 0.05 ? " · parapet \(Fmt.cm(o.bottom))" : ""))
-                }
+                if let i = record.plan.openings.firstIndex(where: { $0.id == id }) { openingPanel(i) }
             case .object(let id):
                 if let o = record.plan.objects.first(where: { $0.id == id }) {
                     Text(Names.category(o.category) + " (nalezeno skenem)").font(.headline)
@@ -227,13 +234,77 @@ struct PlanView: View {
         .background(.bar)
     }
 
+    /// A scan gets the size and place of a door right, but not what it is, where it leads or how it opens.
+    /// Those are corrected here.
+    private func openingPanel(_ i: Int) -> some View {
+        let o = record.plan.openings[i]
+        let swings = o.kind == .door && !o.slides
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(Names.opening(o)).font(.headline)
+                Spacer()
+                if swings {
+                    Button { record.plan.openings[i].hingeAtB = !(o.hingeAtB ?? false); onChange() } label: {
+                        Image(systemName: "arrow.left.arrow.right")
+                    }
+                    .accessibilityLabel("Panty na druhou stranu")
+                    Button { record.plan.openings[i].opensOut = !(o.opensOut ?? false); onChange() } label: {
+                        Image(systemName: "arrow.up.arrow.down")
+                    }
+                    .accessibilityLabel("Otevírání na druhou stranu")
+                }
+                Menu {
+                    Picker("Typ", selection: Binding(get: { o.kind }, set: { record.plan.openings[i].kind = $0; onChange() })) {
+                        Text("Dveře").tag(OpeningKind.door)
+                        Text("Průchod bez dveří").tag(OpeningKind.opening)
+                        Text("Okno").tag(OpeningKind.window)
+                        Text("Vestavěná skříň").tag(OpeningKind.wardrobe)
+                    }
+                    Button { labelText = o.label ?? ""; labelling = true } label: { Label("Popis…", systemImage: "pencil") }
+                    Button(role: .destructive) {
+                        selection = .none
+                        record.plan.openings.remove(at: i)
+                        onChange()
+                    } label: { Label("Odstranit z půdorysu", systemImage: "trash") }
+                } label: { Image(systemName: "slider.horizontal.3") }
+            }
+            .buttonStyle(.bordered)
+            Text("Šířka \(Fmt.cm(o.width)) · výška \(Fmt.cm(o.height))" + (o.bottom > 0.05 ? " · parapet \(Fmt.cm(o.bottom))" : "")
+                 + (o.kind == .wardrobe ? " · hloubka \(Fmt.cm(o.bodyDepth))" + (o.depth == nil ? " (odhad)" : "") : ""))
+                .font(.footnote)
+            if swings && o.hingeAtB == nil && o.opensOut == nil {
+                Text("Stranu pantů a směr otevírání sken nepozná. Nastav je šipkami.")
+                    .font(.footnote).foregroundStyle(.secondary)
+            }
+        }
+        .alert("Popis (kam vedou, co to je)", isPresented: $labelling) {
+            TextField("např. Koupelna", text: $labelText)
+            Button("Uložit") {
+                if case .opening(let id) = selection, let j = record.plan.openings.firstIndex(where: { $0.id == id }) {
+                    record.plan.openings[j].label = labelText.isEmpty ? nil : labelText
+                    onChange()
+                }
+            }
+            Button("Zrušit", role: .cancel) {}
+        }
+    }
+
+    /// "stěny 4 · dveře 3 · průchody 1", leaving out what the room does not have.
+    private func counts(_ p: PlanModel) -> String {
+        let kinds: [(OpeningKind, String)] = [(.door, "dveře"), (.opening, "průchody"), (.window, "okna"), (.wardrobe, "vestavěné skříně")]
+        return (["stěny \(p.walls.count)"] + kinds.compactMap { kind, name in
+            let n = p.openings.filter { $0.kind == kind }.count
+            return n > 0 ? "\(name) \(n)" : nil
+        }).joined(separator: " · ")
+    }
+
     private var roomSummary: some View {
         let p = record.plan
         return VStack(alignment: .leading, spacing: 4) {
             if let t = Names.room(p.roomType) { Text(t).font(.headline) }
             Text("Plocha \(Fmt.m2(p.area)) · obvod \(Fmt.m(p.perimeter, digits: 1)) · výška \(Fmt.m(p.ceilingHeight)) · objem \(Fmt.m3(p.volume))")
                 .font(.subheadline)
-            Text("\(p.walls.count) stěn · \(p.openings.filter { $0.kind == .door }.count) dveře · \(p.openings.filter { $0.kind == .window }.count) okna · \(record.layout.count) kusů v rozvržení")
+            Text(counts(p) + " · v rozvržení \(record.layout.count)")
                 .font(.footnote).foregroundStyle(.secondary)
         }
     }

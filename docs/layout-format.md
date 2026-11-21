@@ -10,8 +10,8 @@ All values are metres, in plan coordinates: x to the right, y **downwards** (a t
 |---|---|
 | `outline` | Floor polygon `[[x, y], …]`, not closed |
 | `walls[]` | `from`, `to`, `length`, `height` |
-| `openings[]` | `kind` (`door` / `window` / `opening`), `from`, `to`, `width`, `height`, `sill` (bottom edge above floor) |
-| `door_clearance_zones` | One polygon per door: the area in front of it that must stay free |
+| `openings[]` | `kind` (`door` / `window` / `opening` / `wardrobe`), `from`, `to`, `width`, `height`, `sill` (bottom edge above floor). Set by hand in the app when known: `label` (where a door leads, e.g. "Koupelna"), for doors `hinge_at` `[x, y]` and `swings` (`into this room` / `out of this room`); `sliding` marks doors wider than 2 m. A `wardrobe` is a built-in wardrobe whose sliding doors lie in the wall line, with `depth_behind_wall` (60 cm and `depth_is_assumed` when not measured) |
+| `door_clearance_zones` | One polygon per door and built-in wardrobe: the area in front of it that must stay free |
 | `detected_furniture[]` | What RoomPlan found: `category`, `x`, `y`, `width`, `depth`, `height`, `rotation` |
 | `photos[]` | `file`, `camera_at` `[x, y]`, `looking_towards_deg` (clockwise from +x), `caption` |
 | `area_m2`, `perimeter_m`, `ceiling_height_m`, `room_type`, `notes` | |

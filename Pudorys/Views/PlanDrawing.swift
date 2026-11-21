@@ -105,6 +105,14 @@ struct PlanDrawing {
 
         // Doors, windows, openings
         let centre = Geometry.centroid(plan.outline)
+        // Sliding doors: two overlapping panels just inside the wall line.
+        func slidingPanels(_ o: PlanOpening, _ n: P2, _ col: Color) {
+            let half = o.direction * (o.width / 2 + 0.05)
+            for (from, to, off) in [(o.a, o.a + half, 0.03), (o.b - half, o.b, 0.08)] {
+                var panel = Path(); panel.move(to: m.pt(from + n * off)); panel.addLine(to: m.pt(to + n * off))
+                ctx.stroke(panel, with: .color(col), lineWidth: 1.5)
+            }
+        }
         for o in plan.openings {
             var gap = Path(); gap.move(to: m.pt(o.a)); gap.addLine(to: m.pt(o.b))
             ctx.stroke(gap, with: .color(paper), style: StrokeStyle(lineWidth: wallWidth + 1, lineCap: .butt))
@@ -117,22 +125,29 @@ struct PlanDrawing {
                     var l = Path(); l.move(to: m.pt(o.a + n * k)); l.addLine(to: m.pt(o.b + n * k))
                     ctx.stroke(l, with: .color(k == 0 ? Color.blue.opacity(0.7) : col), lineWidth: 1)
                 }
+            case .wardrobe:
+                let body = poly(plan.wardrobeBody(o), m)
+                ctx.fill(body, with: .color(ink.opacity(0.07)))
+                ctx.stroke(body, with: .color(sel ? .accentColor : ink.opacity(0.6)), lineWidth: 1)
+                slidingPanels(o, plan.inward(o), col)
+                if layers.labels {
+                    let text = o.label ?? "Vestavěná skříň"
+                    label(&ctx, text, at: m.pt(Geometry.centroid(plan.wardrobeBody(o))), size: 10, color: ink.opacity(0.7))
+                }
             case .door:
-                var n = P2(x: -o.direction.y, y: o.direction.x)
-                if (centre - o.center).dot(n) < 0 { n = n * -1 }
-                // RoomPlan gives no hinge side. A wide door (patio, double door) gets two half leaves.
-                // Anything wider than 2 m is a sliding door or a sliding-door wardrobe: two offset panels, no swing.
-                if o.width > 2 {
-                    let half = o.direction * (o.width / 2 + 0.05)
-                    for (from, to, off) in [(o.a, o.a + half, 0.03), (o.b - half, o.b, 0.08)] {
-                        var panel = Path(); panel.move(to: m.pt(from + n * off)); panel.addLine(to: m.pt(to + n * off))
-                        ctx.stroke(panel, with: .color(col), lineWidth: 1.5)
-                    }
+                let into = plan.inward(o)
+                // Anything wider than 2 m slides: no swing.
+                if o.slides {
+                    slidingPanels(o, into, col)
                     continue
                 }
+                // RoomPlan gives neither the hinge side nor the direction; until they are set by hand the leaf
+                // is drawn hinged at `a` and swinging into the room. A wide door (double door) gets two half leaves.
+                let n = o.opensOut == true ? into * -1 : into
+                let atB = o.hingeAtB == true
                 let leaves: [(hinge: P2, along: P2, radius: Double)] = o.width > 1.25
                     ? [(o.a, o.direction, o.width / 2), (o.b, o.direction * -1, o.width / 2)]
-                    : [(o.a, o.direction, o.width)]
+                    : [(atB ? o.b : o.a, atB ? o.direction * -1 : o.direction, o.width)]
                 for l in leaves {
                     var leaf = Path(); leaf.move(to: m.pt(l.hinge)); leaf.addLine(to: m.pt(l.hinge + n * l.radius))
                     ctx.stroke(leaf, with: .color(col), lineWidth: 1.5)
@@ -155,12 +170,16 @@ struct PlanDrawing {
         }
 
         // Wall dimensions
+        let dimensionOffset = Double(wallWidth / s) / 2 + 16 / Double(s)
         if layers.dimensions {
             for w in plan.walls where w.length > 0.25 {
                 let d = (w.b - w.a).normalized
                 var n = P2(x: -d.y, y: d.x)
                 if (centre - w.mid).dot(n) > 0 { n = n * -1 }
-                let off = Double(wallWidth / s) / 2 + 16 / Double(s)
+                // A built-in wardrobe sits behind its wall: measure past it.
+                let behind = plan.openings.filter { $0.kind == .wardrobe && Geometry.distance(point: $0.center, toSegment: w.a, w.b) < 0.1 }
+                    .map(\.bodyDepth).max() ?? 0
+                let off = dimensionOffset + behind
                 let a = w.a + n * off, b = w.b + n * off
                 var line = Path(); line.move(to: m.pt(a)); line.addLine(to: m.pt(b))
                 for q in [a, b] {
@@ -171,6 +190,20 @@ struct PlanDrawing {
                 if ang > .pi / 2 { ang -= .pi } else if ang < -.pi / 2 { ang += .pi }
                 label(&ctx, Fmt.short(w.length), at: m.pt(w.mid + n * off), size: 11, color: ink,
                       angle: ang, pill: true, bold: true)
+            }
+        }
+
+        // Where doors lead ("Koupelna"), written outside the room past the dimension line.
+        if layers.labels {
+            for o in plan.openings where o.kind != .wardrobe {
+                guard let text = o.label, !text.isEmpty else { continue }
+                let out = plan.inward(o) * -1
+                // Past the dimension line, and past the leaf when the door swings out.
+                let swing = o.kind == .door && o.opensOut == true && !o.slides ? o.width : 0
+                let off = max(layers.dimensions ? dimensionOffset : Double(wallWidth / s) / 2, swing) + 14 / Double(s)
+                var ang = atan2(o.direction.y, o.direction.x)
+                if ang > .pi / 2 + 0.01 { ang -= .pi } else if ang < -.pi / 2 + 0.01 { ang += .pi }
+                label(&ctx, text, at: m.pt(o.center + out * off), size: 9, color: ink.opacity(0.75), angle: ang)
             }
         }
 

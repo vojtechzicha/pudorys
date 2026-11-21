@@ -38,6 +38,7 @@ enum RoomScene {
             case .door: box.firstMaterial = mat(UIColor(red: 0.55, green: 0.38, blue: 0.24, alpha: 1))
             case .window: box.firstMaterial = mat(UIColor.systemBlue.withAlphaComponent(0.35))
             case .opening: box.firstMaterial = mat(UIColor(white: 0.3, alpha: 0.25))
+            case .wardrobe: box.firstMaterial = mat(UIColor(red: 0.74, green: 0.81, blue: 0.87, alpha: 1))
             }
             root.addChildNode(place(box, at: o.center, along: o.direction, bottom: o.bottom, height: h))
         }

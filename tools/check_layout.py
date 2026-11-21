@@ -112,7 +112,7 @@ def svg(plan, layout, bad):
         o.append(f'<line x1="{X(ax):.1f}" y1="{Y(ay):.1f}" x2="{X(bx):.1f}" y2="{Y(by):.1f}" stroke="#222" stroke-width="12" stroke-linecap="square"/>')
     for op in plan["openings"]:
         (ax, ay), (bx, by) = op["from"], op["to"]
-        col = {"window": "#6aa8ff", "door": "#a0522d"}.get(op["kind"], "white")
+        col = {"window": "#6aa8ff", "door": "#a0522d", "wardrobe": "#8fa6ba"}.get(op["kind"], "white")
         o.append(f'<line x1="{X(ax):.1f}" y1="{Y(ay):.1f}" x2="{X(bx):.1f}" y2="{Y(by):.1f}" stroke="{col}" stroke-width="13"/>')
     o.append("</svg>")
     return "\n".join(o)

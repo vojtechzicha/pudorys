@@ -18,8 +18,21 @@ enum PlanBrief {
             "outline": p.outline.map(pt),
             "walls": p.walls.map { ["id": $0.id, "from": pt($0.a), "to": pt($0.b), "length": r($0.length), "height": r($0.height)] },
             "openings": p.openings.map { o -> [String: Any] in
-                ["id": o.id, "kind": o.kind.rawValue, "from": pt(o.a), "to": pt(o.b), "width": r(o.width),
-                 "height": r(o.height), "sill": r(o.bottom), "door_open": o.isOpen]
+                var d: [String: Any] = ["id": o.id, "kind": o.kind.rawValue, "from": pt(o.a), "to": pt(o.b),
+                                        "width": r(o.width), "height": r(o.height), "sill": r(o.bottom)]
+                if let l = o.label, !l.isEmpty { d["label"] = l }
+                switch o.kind {
+                case .door:
+                    d["door_open"] = o.isOpen
+                    if o.slides { d["sliding"] = true }
+                    if let atB = o.hingeAtB { d["hinge_at"] = pt(atB ? o.b : o.a) }
+                    if let out = o.opensOut { d["swings"] = out ? "out of this room" : "into this room" }
+                case .wardrobe:
+                    d["depth_behind_wall"] = r(o.bodyDepth)
+                    if o.depth == nil { d["depth_is_assumed"] = true }
+                case .window, .opening: break
+                }
+                return d
             },
             "door_clearance_zones": LayoutCheck.doorZones(p).map { $0.1.map(pt) },
             "detected_furniture": p.objects.map { o -> [String: Any] in

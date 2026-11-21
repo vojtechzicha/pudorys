@@ -62,7 +62,7 @@ final class ScanSession: NSObject, ObservableObject, RoomCaptureViewDelegate {
 
     func takePhoto() {
         guard let frame = captureView.captureSession.arSession.currentFrame else { return }
-        let image = CIImage(cvPixelBuffer: frame.capturedImage).oriented(.right)
+        let image = CIImage(cvPixelBuffer: frame.capturedImage).oriented(Self.orientation(of: frame.camera.transform))
         let opts = [kCGImageDestinationLossyCompressionQuality as CIImageRepresentationOption: 0.8]
         guard let jpeg = ci.jpegRepresentation(of: image, colorSpace: CGColorSpace(name: CGColorSpace.sRGB)!,
                                                options: opts) else { return }
@@ -74,6 +74,16 @@ final class ScanSession: NSObject, ObservableObject, RoomCaptureViewDelegate {
     }
 
     // MARK: RoomCaptureViewDelegate
+
+    /// How to turn the camera image (always sensor-landscape) so that up is up, however the phone is held.
+    static func orientation(of camera: simd_float4x4) -> CGImagePropertyOrientation {
+        // World up as it appears in the image: the image's right is the camera's +x, its top the camera's +y.
+        let right = camera.columns.0.y, top = camera.columns.1.y
+        // Pointing at the floor or the ceiling there is no up; scanning is done in portrait.
+        if abs(right) < 0.25 && abs(top) < 0.25 { return .right }
+        if abs(right) >= abs(top) { return right < 0 ? .right : .left }
+        return top > 0 ? .up : .down
+    }
 
     // RoomPlan does not promise the main thread for these, and they drive the UI.
 

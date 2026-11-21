@@ -29,7 +29,9 @@ struct PlanWall: Codable, Hashable, Identifiable {
     var mid: P2 { (a + b) * 0.5 }
 }
 
-enum OpeningKind: String, Codable { case door, window, opening }
+/// `wardrobe` is a built-in wardrobe whose sliding doors lie in the wall line. RoomPlan reports it as a
+/// wide door; the kind is set by hand.
+enum OpeningKind: String, Codable { case door, window, opening, wardrobe }
 
 struct PlanOpening: Codable, Hashable, Identifiable {
     var id: String
@@ -42,8 +44,23 @@ struct PlanOpening: Codable, Hashable, Identifiable {
     /// Height of the bottom edge above the floor (window sill), metres.
     var bottom: Double
     var isOpen: Bool = false
+
+    // What a scan cannot tell. nil means not known; set by hand (tap the opening on the plan).
+    /// Where the door leads or what the thing is ("Vchod", "Koupelna").
+    var label: String?
+    /// The hinges are at `b` instead of `a`.
+    var hingeAtB: Bool?
+    /// The leaf swings out of this room instead of into it.
+    var opensOut: Bool?
+    /// How far a built-in wardrobe reaches behind the wall line, metres.
+    var depth: Double?
+
     var a: P2 { center - direction * (width / 2) }
     var b: P2 { center + direction * (width / 2) }
+    /// A door this wide slides (patio door, sliding partition): it is drawn without a swing.
+    var slides: Bool { kind == .door && width > 2 }
+    /// Wardrobe depth to draw: the measured one, or the usual 60 cm.
+    var bodyDepth: Double { depth ?? 0.6 }
 }
 
 /// A furniture piece RoomPlan detected, or one the user / Claude placed in a layout.
@@ -93,8 +110,26 @@ struct PlanModel: Codable, Hashable {
     var ceilingHeight: Double { walls.map(\.height).max() ?? 2.5 }
     var volume: Double { area * ceilingHeight }
 
+    /// Unit vector across the opening's wall, pointing into the room.
+    func inward(_ o: PlanOpening) -> P2 {
+        let n = P2(x: -o.direction.y, y: o.direction.x)
+        return (Geometry.centroid(outline) - o.center).dot(n) < 0 ? n * -1 : n
+    }
+
+    /// Footprint of a built-in wardrobe: from its doors in the wall line back behind the wall.
+    func wardrobeBody(_ o: PlanOpening) -> [P2] {
+        let back = inward(o) * -o.bodyDepth
+        return [o.a, o.b, o.b + back, o.a + back]
+    }
+
     var bounds: CGRect {
         let pts = outline + walls.flatMap { [$0.a, $0.b] } + objects.flatMap { $0.corners() }
+            + openings.filter { $0.kind == .wardrobe }.flatMap(wardrobeBody)
+            + openings.filter { $0.kind == .door && $0.opensOut == true && !$0.slides }.flatMap { o -> [P2] in
+                // A leaf that swings out is drawn outside the room.
+                let out = inward(o) * -o.width
+                return [o.a + out, o.b + out]
+            }
         guard let f = pts.first else { return CGRect(x: 0, y: 0, width: 4, height: 4) }
         var r = CGRect(origin: f.cg, size: .zero)
         for p in pts { r = r.union(CGRect(origin: p.cg, size: .zero)) }

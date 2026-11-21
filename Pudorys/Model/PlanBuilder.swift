@@ -12,12 +12,23 @@ enum PlanBuilder {
             return mins.min() ?? 0
         }()
 
-        // Rotate so the longest wall runs along the x axis.
-        let longest = walls.max { $0.dimensions.x < $1.dimensions.x }
+        // Rotate so the walls run along the axes, the longest one along x. The walls of a room mostly share
+        // two perpendicular directions; the plan follows the direction most wall length agrees on, so one
+        // wall measured slightly off (a mirrored wardrobe front, say) does not tilt all the others.
         var angle = 0.0
-        if let w = longest {
-            let d = w.transform.columns.0
-            angle = -atan2(Double(d.z), Double(d.x))
+        if let longest = walls.max(by: { $0.dimensions.x < $1.dimensions.x }) {
+            func heading(_ w: CapturedRoom.Surface) -> Double { atan2(Double(w.transform.columns.0.z), Double(w.transform.columns.0.x)) }
+            func apart(_ a: Double, _ b: Double) -> Double {   // between two directions, modulo a right angle
+                let d = abs((a - b).truncatingRemainder(dividingBy: .pi / 2))
+                return min(d, .pi / 2 - d)
+            }
+            func agreeing(_ w: CapturedRoom.Surface) -> Double {
+                walls.filter { apart(heading($0), heading(w)) < 0.5 * .pi / 180 }.reduce(0) { $0 + Double($1.dimensions.x) }
+            }
+            let reference = walls.max { (agreeing($0), $0.dimensions.x) < (agreeing($1), $1.dimensions.x) } ?? longest
+            angle = -heading(reference)
+            // Of the four ways to square the plan, keep the one with the longest wall pointing along +x.
+            angle -= ((heading(longest) + angle) / (.pi / 2)).rounded() * .pi / 2
         }
         var t = PlanTransform(angle: angle, offset: .zero, floorY: floorY)
 
@@ -30,6 +41,16 @@ enum PlanBuilder {
         var planWalls: [PlanWall] = walls.map { w in
             let c = center(w.transform), d = axis(w.transform), half = Double(w.dimensions.x) / 2
             return PlanWall(id: w.identifier.uuidString, a: c - d * half, b: c + d * half, height: Double(w.dimensions.y))
+        }
+
+        // RoomPlan sometimes adds a short piece lying on a longer wall. It is not a wall of its own.
+        let scanned = planWalls
+        planWalls = scanned.filter { w in
+            w.length >= 0.3 || !scanned.contains { v in
+                v.id != w.id && v.length > w.length
+                    && Geometry.distance(point: w.a, toSegment: v.a, v.b) < 0.05
+                    && Geometry.distance(point: w.b, toSegment: v.a, v.b) < 0.05
+            }
         }
 
         var openings: [PlanOpening] = []
