@@ -79,11 +79,18 @@ struct PlanDrawing {
             for o in plan.objects {
                 let sel = selection == .object(o.id)
                 let path = poly(o.corners(), m)
-                ctx.fill(path, with: .color(ink.opacity(0.08)))
-                ctx.stroke(path, with: .color(ink.opacity(sel ? 0.9 : 0.45)),
-                           style: StrokeStyle(lineWidth: sel ? 2 : 1, dash: [4, 3]))
+                // Wall-mounted pieces (upper kitchen cabinets) hang over other furniture: outline only.
+                let hanging = o.bottom > 1.0
+                if !hanging { ctx.fill(path, with: .color(ink.opacity(0.08))) }
+                ctx.stroke(path, with: .color(ink.opacity(sel ? 0.9 : hanging ? 0.25 : 0.45)),
+                           style: StrokeStyle(lineWidth: sel ? 2 : 1, dash: hanging ? [2, 3] : [4, 3]))
+                // A scan can find twenty pieces; name only those whose name fits inside them.
                 if layers.labels {
-                    label(&ctx, Names.category(o.category), at: m.pt(o.center), size: 10, color: ink.opacity(0.55))
+                    let text = Names.category(o.category)
+                    let box = path.boundingRect
+                    if sel || (!hanging && box.width >= CGFloat(text.count) * 5.2 && box.height >= 13) {
+                        label(&ctx, text, at: m.pt(o.center), size: 10, color: ink.opacity(0.55))
+                    }
                 }
             }
         }
@@ -113,18 +120,31 @@ struct PlanDrawing {
             case .door:
                 var n = P2(x: -o.direction.y, y: o.direction.x)
                 if (centre - o.center).dot(n) < 0 { n = n * -1 }
-                let hinge = o.a, tip = o.a + n * o.width
-                var leaf = Path(); leaf.move(to: m.pt(hinge)); leaf.addLine(to: m.pt(tip))
-                ctx.stroke(leaf, with: .color(col), lineWidth: 1.5)
-                var arc = Path()
-                let steps = 16
-                for i in 0...steps {
-                    let t = Double(i) / Double(steps) * .pi / 2
-                    let v = o.direction * cos(t) + n * sin(t)
-                    let q = m.pt(hinge + v * o.width)
-                    if i == 0 { arc.move(to: q) } else { arc.addLine(to: q) }
+                // RoomPlan gives no hinge side. A wide door (patio, double door) gets two half leaves.
+                // Anything wider than 2 m is a sliding door or a sliding-door wardrobe: two offset panels, no swing.
+                if o.width > 2 {
+                    let half = o.direction * (o.width / 2 + 0.05)
+                    for (from, to, off) in [(o.a, o.a + half, 0.03), (o.b - half, o.b, 0.08)] {
+                        var panel = Path(); panel.move(to: m.pt(from + n * off)); panel.addLine(to: m.pt(to + n * off))
+                        ctx.stroke(panel, with: .color(col), lineWidth: 1.5)
+                    }
+                    continue
                 }
-                ctx.stroke(arc, with: .color(col.opacity(0.6)), style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                let leaves: [(hinge: P2, along: P2, radius: Double)] = o.width > 1.25
+                    ? [(o.a, o.direction, o.width / 2), (o.b, o.direction * -1, o.width / 2)]
+                    : [(o.a, o.direction, o.width)]
+                for l in leaves {
+                    var leaf = Path(); leaf.move(to: m.pt(l.hinge)); leaf.addLine(to: m.pt(l.hinge + n * l.radius))
+                    ctx.stroke(leaf, with: .color(col), lineWidth: 1.5)
+                    var arc = Path()
+                    let steps = 16
+                    for i in 0...steps {
+                        let t = Double(i) / Double(steps) * .pi / 2
+                        let q = m.pt(l.hinge + (l.along * cos(t) + n * sin(t)) * l.radius)
+                        if i == 0 { arc.move(to: q) } else { arc.addLine(to: q) }
+                    }
+                    ctx.stroke(arc, with: .color(col.opacity(0.6)), style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                }
             case .opening:
                 for q in [o.a, o.b] {
                     let n = P2(x: -o.direction.y, y: o.direction.x) * 0.08

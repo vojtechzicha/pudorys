@@ -1,6 +1,7 @@
 import SwiftUI
 import RoomPlan
 import ARKit
+import AVFoundation
 import CoreImage
 import simd
 
@@ -8,6 +9,7 @@ import simd
 struct PendingPhoto {
     var jpeg: Data
     var camera: simd_float4x4
+    var takenAt = Date()
 }
 
 /// Owns the RoomPlan capture view and turns its result into a saved `ScanRecord`.
@@ -20,6 +22,7 @@ final class ScanSession: NSObject, ObservableObject, RoomCaptureViewDelegate {
     let captureView: RoomCaptureView
     private(set) var result: CapturedRoom?
     private var photos: [PendingPhoto] = []
+    private var cancelled = false
     private let ci = CIContext()
 
     override init() {
@@ -32,6 +35,13 @@ final class ScanSession: NSObject, ObservableObject, RoomCaptureViewDelegate {
     func encode(with coder: NSCoder) {}
 
     func start() {
+        let access = AVCaptureDevice.authorizationStatus(for: .video)
+        if access == .denied || access == .restricted {
+            phase = .failed("Aplikace nemá přístup ke kameře. Povol ho v Nastavení → Půdorys → Kamera.")
+            return
+        }
+        // Nobody touches the screen while walking around the room; keep it from locking.
+        UIApplication.shared.isIdleTimerDisabled = true
         var config = RoomCaptureSession.Configuration()
         config.isCoachingEnabled = true
         captureView.captureSession.run(configuration: config)
@@ -42,7 +52,13 @@ final class ScanSession: NSObject, ObservableObject, RoomCaptureViewDelegate {
         captureView.captureSession.stop()
     }
 
-    func cancel() { captureView.captureSession.stop() }
+    func cancel() {
+        cancelled = true
+        captureView.captureSession.stop()
+    }
+
+    /// Called when the scan screen goes away, however it was closed.
+    func end() { UIApplication.shared.isIdleTimerDisabled = false }
 
     func takePhoto() {
         guard let frame = captureView.captureSession.arSession.currentFrame else { return }
@@ -59,15 +75,26 @@ final class ScanSession: NSObject, ObservableObject, RoomCaptureViewDelegate {
 
     // MARK: RoomCaptureViewDelegate
 
-    func captureView(shouldPresent roomDataForProcessing: CapturedRoomData, error: Error?) -> Bool { true }
+    // RoomPlan does not promise the main thread for these, and they drive the UI.
+
+    func captureView(shouldPresent roomDataForProcessing: CapturedRoomData, error: Error?) -> Bool {
+        if cancelled { return false }
+        if let error {
+            DispatchQueue.main.async { self.phase = .failed(error.localizedDescription) }
+            return false
+        }
+        return true
+    }
 
     func captureView(didPresent processedResult: CapturedRoom, error: Error?) {
-        if let error {
-            phase = .failed(error.localizedDescription)
-            return
+        DispatchQueue.main.async {
+            if let error {
+                self.phase = .failed(error.localizedDescription)
+                return
+            }
+            self.result = processedResult
+            self.phase = .done
         }
-        result = processedResult
-        phase = .done
     }
 
     /// Writes the scan into the store: plan, raw RoomPlan JSON, USDZ model and photos.
@@ -76,8 +103,16 @@ final class ScanSession: NSObject, ObservableObject, RoomCaptureViewDelegate {
         let plan = PlanBuilder.build(from: room)
         var rec = ScanRecord(id: UUID().uuidString, name: name, createdAt: Date(), plan: plan)
         store.save(rec)
-        try? room.export(to: store.modelURL(rec.id), exportOptions: .parametric)
-        if let data = try? JSONEncoder().encode(room) { try? data.write(to: store.roomURL(rec.id)) }
+        // The plan is already saved; a failure here loses only the 3D model or the raw data, so note it and go on.
+        var problems: [String] = []
+        do { try room.export(to: store.modelURL(rec.id), exportOptions: .parametric) }
+        catch { problems.append("model.usdz: \(error)") }
+        do { try JSONEncoder().encode(room).write(to: store.roomURL(rec.id)) }
+        catch { problems.append("room.json: \(error)") }
+        if !problems.isEmpty {
+            try? problems.joined(separator: "\n").write(to: store.dir(rec.id).appendingPathComponent("save-errors.txt"),
+                                                        atomically: true, encoding: .utf8)
+        }
 
         let t = plan.transform
         for p in photos {
@@ -85,7 +120,7 @@ final class ScanSession: NSObject, ObservableObject, RoomCaptureViewDelegate {
             let dir = P2(x: Double(fwd.x), y: Double(fwd.z)).normalized.rotated(by: t.angle)
             store.addPhoto(p.jpeg, to: &rec,
                            position: t.toPlan(x: Double(pos.x), z: Double(pos.z)),
-                           heading: atan2(dir.y, dir.x) * 180 / .pi)
+                           heading: atan2(dir.y, dir.x) * 180 / .pi, takenAt: p.takenAt)
         }
         store.save(rec)
         return rec
@@ -128,6 +163,7 @@ struct ScanView: View {
             name = store.nextName()
             session.start()
         }
+        .onDisappear { session.end() }
         .statusBarHidden()
     }
 

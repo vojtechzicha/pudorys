@@ -73,6 +73,7 @@ struct ScanListView: View {
                     store.save(rec)
                     path = [rec]
                 }
+                debugReplay()
             }
         }
     }
@@ -94,6 +95,33 @@ struct ScanListView: View {
                     .font(.subheadline).foregroundStyle(.secondary)
                 Text(Fmt.date(rec.createdAt)).font(.caption).foregroundStyle(.tertiary)
             }
+        }
+    }
+
+    /// Debug: `-rebuild` runs PlanBuilder again on every scan's stored RoomPlan data;
+    /// `-importRoom <file>` adds a scan from a RoomPlan JSON file and opens it;
+    /// `-open <name>` opens the scan with that name.
+    private func debugReplay() {
+        let args = ProcessInfo.processInfo.arguments
+        if args.contains("-rebuild") {
+            for rec in store.records {
+                print("REBUILD:", rec.name, store.rebuildPlan(rec) == nil ? "no RoomPlan data" : "ok")
+            }
+        }
+        if let i = args.firstIndex(of: "-importRoom"), i + 1 < args.count, path.isEmpty {
+            let url = URL(fileURLWithPath: args[i + 1])
+            do {
+                let rec = try store.importRoom(at: url, name: url.deletingPathExtension().lastPathComponent)
+                print("IMPORT: ok", rec.plan.walls.count, "walls,", rec.plan.outline.count, "outline points,",
+                      rec.plan.openings.count, "openings,", rec.plan.objects.count, "objects")
+                path = [rec]
+            } catch {
+                print("IMPORT: failed", error)
+            }
+        }
+        if let i = args.firstIndex(of: "-open"), i + 1 < args.count, path.isEmpty,
+           let rec = store.records.first(where: { $0.name == args[i + 1] }) {
+            path = [rec]
         }
     }
 

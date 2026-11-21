@@ -84,9 +84,10 @@ final class ScanStore {
         records.removeAll { $0.id == rec.id }
     }
 
-    func addPhoto(_ jpeg: Data, to rec: inout ScanRecord, position: P2? = nil, heading: Double? = nil) {
+    func addPhoto(_ jpeg: Data, to rec: inout ScanRecord, position: P2? = nil, heading: Double? = nil,
+                  takenAt: Date = Date()) {
         let id = UUID().uuidString
-        let p = PhotoRecord(id: id, fileName: "\(id).jpg", position: position, heading: heading, takenAt: Date())
+        let p = PhotoRecord(id: id, fileName: "\(id).jpg", position: position, heading: heading, takenAt: takenAt)
         let d = dir(rec.id).appendingPathComponent("photos")
         try? FileManager.default.createDirectory(at: d, withIntermediateDirectories: true)
         try? jpeg.write(to: d.appendingPathComponent(p.fileName))

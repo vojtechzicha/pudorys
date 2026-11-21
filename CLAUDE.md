@@ -5,11 +5,13 @@ iOS app (SwiftUI + RoomPlan + SceneKit). Project file is generated: edit `projec
 Verify changes in the Simulator with the sample room, no LiDAR needed:
 
 ```sh
-xcodebuild -project Pudorys.xcodeproj -scheme Pudorys -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -derivedDataPath build build
+xcodebuild -project Pudorys.xcodeproj -scheme Pudorys -destination 'platform=iOS Simulator,id=<simulator UDID>' -derivedDataPath build build   # UDID from `xcrun simctl list devices`; a name alone is ambiguous once several iOS runtimes are installed
 xcrun simctl install booted build/Build/Products/Debug-iphonesimulator/Pudorys.app
 xcrun simctl launch booted name.zicha.pudorys -demo -demoLayout -tab plan   # or model / photos / ai; add -exportTest
 xcrun simctl io booted screenshot shot.png
 ```
+
+The scan code (`ScanView`, `PlanBuilder`) only runs on real RoomPlan data. Test `PlanBuilder` changes in the Simulator with `-importRoom <roomplan-captured-room.json>` (from any export of a real scan), then `-open "<name>"`; `-rebuild` re-runs it on the scans already stored. On a device: `xcodebuild … -destination 'id=<device UDID>' -allowProvisioningUpdates`, `xcrun devicectl device install app`, and pull scans back with `xcrun devicectl device copy from --domain-type appDataContainer --domain-identifier name.zicha.pudorys --source Documents/Scans`.
 
 ## Planning a room from an export
 

@@ -82,6 +82,9 @@ The Xcode project is generated from `project.yml`; don't commit `Pudorys.xcodepr
 | `-demoLayout` | Give the sample room a sample layout |
 | `-tab plan\|model\|photos\|ai` | Start on that tab |
 | `-exportTest` | Write an export and print its path |
+| `-open "<name>"` | Open the scan with that name |
+| `-importRoom <file>` | Add a scan from a RoomPlan JSON file (`roomplan-captured-room.json` from an export) and open it |
+| `-rebuild` | Build every plan again from its stored RoomPlan data |
 | `-aiTest "<request>"` | Send one planning request and print `AITEST …` |
 
 Debug builds also read the API key from the `ANTHROPIC_API_KEY` environment variable, so a test can take it from a password manager without storing it:
@@ -91,6 +94,8 @@ xcrun simctl launch booted name.zicha.pudorys -demo -tab plan
 SIMCTL_CHILD_ANTHROPIC_API_KEY="$(op read 'op://<vault>/<item>/credential')" \
   xcrun simctl launch --console-pty booted name.zicha.pudorys -demo -tab ai -aiTest "Navrhni rozmístění nábytku."
 ```
+
+A scan from a real device can be replayed in the Simulator, where RoomPlan still decodes its own data: export the room, unzip it on the Mac and launch with `-importRoom <path>/roomplan-captured-room.json`. To bring photos along too, copy the scan's folder from the device (`xcrun devicectl device copy from --domain-type appDataContainer --domain-identifier name.zicha.pudorys --source Documents/Scans …`) into `Documents/Scans` of the Simulator's app container.
 
 Contributions are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md).
 

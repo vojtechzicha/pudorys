@@ -1,5 +1,6 @@
 import SwiftUI
 import SceneKit
+import simd
 import QuickLook
 
 /// Builds a SceneKit model of the room from plan data (x = plan x, z = plan y, y up).
@@ -77,9 +78,13 @@ enum RoomScene {
         let cam = SCNNode()
         cam.camera = SCNCamera()
         cam.camera!.fieldOfView = 55
-        let span = max(b.width, b.height)
-        cam.position = SCNVector3(b.midX + span * 0.15, span * 1.5 + 1.5, b.maxY + span * 0.55)
-        cam.look(at: SCNVector3(b.midX, 0, b.midY))
+        // The field of view is vertical; on a portrait phone the horizontal one is about half of it,
+        // so the room's width usually decides how far back the camera has to be (a long hallway did not fit).
+        let h = plan.ceilingHeight
+        let distance = max((b.width + 0.6) / 0.57, (b.height + 0.6) / 1.04) + h
+        let dir = simd_normalize(simd_double3(0.1, 1.0, 0.45))
+        cam.position = SCNVector3(b.midX + dir.x * distance, h * 0.3 + dir.y * distance, b.midY + dir.z * distance)
+        cam.look(at: SCNVector3(b.midX, h * 0.3, b.midY))
         root.addChildNode(cam)
         return scene
     }
